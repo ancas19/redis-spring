@@ -2,21 +2,25 @@ package co.com.ancas.redis_spring.city.service;
 
 import co.com.ancas.redis_spring.city.client.CityClient;
 import co.com.ancas.redis_spring.city.dto.City;
+import org.redisson.api.RMapCache;
+import org.redisson.api.RMapCacheReactive;
 import org.redisson.api.RMapReactive;
 import org.redisson.api.RedissonReactiveClient;
 import org.redisson.codec.TypedJsonJacksonCodec;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.concurrent.TimeUnit;
+
 @Service
 public class CityService {
 
 
-    private RMapReactive<String, City> cityMap;
+    private RMapCacheReactive<String, City> cityMap;
     private final CityClient cityClient;
 
     public CityService(RedissonReactiveClient client, CityClient cityClient) {
-        this.cityMap = client.getMap("city", new TypedJsonJacksonCodec(String.class, City.class));
+        this.cityMap = client.getMapCache("city", new TypedJsonJacksonCodec(String.class, City.class));
         this.cityClient = cityClient;
     }
 
@@ -31,7 +35,7 @@ public class CityService {
         return cityMap.get(zip)
                 .switchIfEmpty(
                         this.cityClient.getCityInfo(zip)
-                                .flatMap(data -> cityMap.fastPut(zip, data)
+                                .flatMap(data -> cityMap.fastPut(zip, data,10, TimeUnit.SECONDS)
                                         .thenReturn(data)
                                 )
                 );
